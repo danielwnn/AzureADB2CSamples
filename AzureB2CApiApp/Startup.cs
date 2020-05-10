@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.AzureADB2C.UI;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -6,7 +8,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.VisualBasic;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Security.Claims;
+using System.Threading.Tasks;
 
 namespace AzureB2CApiApp
 {
@@ -58,16 +63,41 @@ namespace AzureB2CApiApp
                     });
             });
 
-            // services.AddAuthentication(AzureADB2CDefaults.BearerAuthenticationScheme)
-            //    .AddAzureADB2CBearer(options => Configuration.Bind("AzureAdB2C", options));
+            services.AddAuthentication(AzureADB2CDefaults.BearerAuthenticationScheme)
+                .AddAzureADB2CBearer(options => Configuration.Bind("AzureAdB2C", options));
 
+            services.Configure<JwtBearerOptions>(
+                AzureADB2CDefaults.JwtBearerAuthenticationScheme,
+                options =>
+                {
+                    options.Events = new JwtBearerEvents
+                    {
+                        OnTokenValidated = ctx => 
+                        {
+                            string objectId = ctx.Principal.FindFirst("http://schemas.microsoft.com/identity/claims/objectidentifier")?.Value;
+                            Console.WriteLine("User Object ID -> " + objectId);
+
+                            // call graph API to get group membership and then map to roles
+                            // fake the roles below
+                            var claims = new List<Claim> { 
+                                new Claim(ClaimTypes.Role, "Admins"), 
+                                new Claim(ClaimTypes.Role, "Users") 
+                            };
+                            ctx.Principal.AddIdentity(new ClaimsIdentity(claims));
+
+                            return Task.CompletedTask;
+                        }
+                    };
+                });
+
+            /*
             services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-              //.AddAuthentication(options =>
-              //{
-              //    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-              //    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-              //    options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
-              //})
+              .AddAuthentication(options =>
+              {
+                  options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+                  options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+                  options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
+              })
               .AddJwtBearer(jwtOptions =>
               {
                   // jwtOptions.MetadataAddress = metadataAddress;
@@ -85,6 +115,7 @@ namespace AzureB2CApiApp
                   //    ValidateIssuerSigningKey = false
                   //};
               });
+              */
 
             services.AddControllers();
         }
