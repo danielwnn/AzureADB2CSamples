@@ -22,6 +22,7 @@ namespace AzureB2CApiApp
                 {
                     logging.ClearProviders();
                     logging.AddConsole();
+                    logging.AddDebug();
                 })
                 .ConfigureWebHostDefaults(webBuilder =>
                 {

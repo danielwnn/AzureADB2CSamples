@@ -1,15 +1,21 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.AzureADB2C.UI;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Microsoft.VisualBasic;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
 
@@ -19,11 +25,15 @@ namespace AzureB2CApiApp
     {
         public IConfiguration Configuration { get; }
 
+        public IWebHostEnvironment _env;
+
         public static string ScopeRead;
         public static string ScopeWrite;
 
         public Startup(IWebHostEnvironment env)
         {
+            _env = env;
+
             var builder = new ConfigurationBuilder()
                             .SetBasePath(env.ContentRootPath)
                             .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
@@ -57,14 +67,21 @@ namespace AzureB2CApiApp
             {
                 options.AddDefaultPolicy(
                     builder => {
-                        builder.WithOrigins("https://localhost:5001", "http://localhost:5000")
-                                .AllowAnyHeader()
-                                .AllowAnyMethod();
+                        builder // .WithOrigins("https://localhost:5001", "http://localhost:5000")
+                            .AllowAnyOrigin() 
+                            .AllowAnyHeader()
+                            .AllowAnyMethod();
                     });
             });
 
             services.AddAuthentication(AzureADB2CDefaults.BearerAuthenticationScheme)
-                .AddAzureADB2CBearer(options => Configuration.Bind("AzureAdB2C", options));
+                .AddAzureADB2CBearer(options => Configuration.Bind("AzureAdB2C", options))
+                .AddCookie(options => {
+                    options.Cookie.Name = ".WebApi.Cookie";
+                    options.Cookie.HttpOnly = true;
+                    options.Cookie.SecurePolicy = _env.IsDevelopment() ? CookieSecurePolicy.None : CookieSecurePolicy.Always;
+                    options.Cookie.SameSite = SameSiteMode.Lax;
+                });
 
             services.Configure<JwtBearerOptions>(
                 AzureADB2CDefaults.JwtBearerAuthenticationScheme,
@@ -121,7 +138,7 @@ namespace AzureB2CApiApp
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+        public void Configure(IApplicationBuilder app, IWebHostEnvironment env, ILogger<Startup> logger)
         {
             if (env.IsDevelopment())
             {
@@ -134,9 +151,44 @@ namespace AzureB2CApiApp
 
             app.UseCors();
 
+            app.UseCookiePolicy();
+
             app.UseAuthentication();
             
             app.UseAuthorization();
+
+            app.Use(async (httpContext, next) =>
+            {
+                //var principal = httpContext.User as ClaimsPrincipal;
+                //var accessToken = principal?.Claims.FirstOrDefault(c => c.Type == "access_token");
+
+                //if (accessToken != null)
+                //{
+                //    logger.LogInformation("Access_token -> " + accessToken.Value);
+                //}
+
+                // Get the encrypted cookie value
+                //var cookieName = ".WebApi.Cookie";
+                //var opt = httpContext.RequestServices.GetRequiredService<IOptionsMonitor<CookieAuthenticationOptions>>();
+                //var cookie = opt.CurrentValue.CookieManager.GetRequestCookie(httpContext, cookieName);
+
+                //// Decrypt if found
+                //if (!string.IsNullOrEmpty(cookie))
+                //{
+                //    var dataProtector = opt.CurrentValue.DataProtectionProvider
+                //        .CreateProtector("Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationMiddleware", cookieName, "v2");
+
+                //    var ticketDataFormat = new TicketDataFormat(dataProtector);
+                //    var ticket = ticketDataFormat.Unprotect(cookie);
+
+                //    foreach (Claim c in ticket.Principal.Claims)
+                //    {
+                //        logger.LogInformation($"Claim in Cookie: {c.Type} -> {c.Value}");
+                //    }
+                //}
+
+                await next();
+            });
 
             app.UseEndpoints(endpoints =>
             {

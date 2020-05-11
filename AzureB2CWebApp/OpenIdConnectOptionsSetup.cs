@@ -124,8 +124,7 @@ namespace AzureB2CWebApp
                 }
                 catch (Exception ex)
                 {
-                    //TODO: Handle
-                    throw;
+                    throw ex;
                 }
             }
         }

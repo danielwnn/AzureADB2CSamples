@@ -32,6 +32,12 @@ namespace AzureB2CWebApp.Controllers
         public IActionResult About()
         {
             ViewData["Message"] = string.Format("Claims available for the user {0}", (User.FindFirst("name")?.Value));
+
+            foreach (Claim c in HttpContext.User.Claims)
+            {
+                Console.WriteLine($"{c.Type} -> {c.Value}");
+            }
+
             return View();
         }
 
