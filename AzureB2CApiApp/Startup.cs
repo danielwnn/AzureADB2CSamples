@@ -15,6 +15,7 @@ using Microsoft.VisualBasic;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
@@ -101,6 +102,14 @@ namespace AzureB2CApiApp
                                 new Claim(ClaimTypes.Role, "Users") 
                             };
                             ctx.Principal.AddIdentity(new ClaimsIdentity(claims));
+
+                            // add the access_token claim, by default Identity framework does expose it as claim
+                            var accessToken = ctx.SecurityToken as JwtSecurityToken;
+                            if (accessToken != null)
+                            {
+                                ClaimsIdentity identity = ctx.Principal.Identity as ClaimsIdentity;
+                                identity.AddClaim(new Claim("access_token", accessToken.RawData));
+                            }
 
                             return Task.CompletedTask;
                         }
