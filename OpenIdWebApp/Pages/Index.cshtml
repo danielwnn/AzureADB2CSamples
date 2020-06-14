@@ -1,0 +1,23 @@
+﻿@page "/"
+
+<!DOCTYPE html>
+
+<html>
+<head>
+    <meta name="viewport" content="width=device-width" />
+    <title>Open ID Connect Web Application</title>
+</head>
+<body>
+    @if (this.User.Identity.IsAuthenticated)
+    {
+        <h1>Hello @this.User.Identity.Name!</h1>
+        <a href="/Account/SignOut">Sign Out</a>
+    }
+    else
+    {
+        <h1>Hello Web!</h1>
+        <a href="/Account/SignIn">Sign In</a>
+    }
+
+</body>
+</html>
